@@ -1,60 +1,68 @@
 <template>
-  <div class="afc-panel">
-    <h1>AFC Spools</h1>
-    <div id="spools-container">
-      <div v-for="(lane, index) in spoolData" :key="index" :id="`spool${index + 1}`" class="spool">
-        <h4>Spool {{ index + 1 }}</h4>
-        <p><strong>Material:</strong> {{ lane.material || "N/A" }}</p>
-        <p><strong>Color:</strong> {{ lane.color || "N/A" }}</p>
-        <p><strong>Status:</strong> {{ lane.load ? "Loaded" : "Not Loaded" }}</p>
-      </div>
+    <div class="afc-panel">
+        <h1>AFC Spools</h1>
+        <div id="spools-container">
+            <div v-for="(unitData, unit, index) in spoolData" :key="index" :id=unit class="unit">
+                <h4>Unit {{ unit }}</h4>
+                <div v-for="(laneData, lane, index2) in unitData" :key="index2" :id=lane class="spool">
+                    <h4>Lane {{ lane }}</h4>
+                    <p><strong>Material:</strong> {{ laneData.material || "N/A" }}</p>
+                    <p><strong>Color:</strong> {{ laneData.color || "N/A" }}</p>
+                    <p><strong>Status:</strong> {{ laneData.load ? "Loaded" : "Not Loaded" }}</p>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
 </template>
 
 <script>
-export default {
-  name: 'AfcPanel',
-  data() {
-    return {
-      spoolData: [],
-      intervalId: null,
-    };
-  },
-  async mounted() {
-    await this.fetchSpoolData();
-    this.intervalId = setInterval(this.fetchSpoolData, 10000); // Refresh data every 10 seconds
-  },
-  beforeDestroy() {
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
-    }
-  },
-  methods: {
-    async fetchSpoolData() {
-      try {
-        const response = await fetch("/printer/objects/query?AFC");
-        const data = await response.json();
-        if (data.result && data.result.status === "success" && data.result.spools) {
-          this.spoolData = this.extractLaneData(data.result.spools);
-        }
-      } catch (error) {
-        console.error("Error fetching AFC spool data:", error);
-      }
-    },
-    extractLaneData(spools) {
-      const lanes = [];
-      for (let [unit, spool] of Object.entries(spools['result']['status']['AFC'])) {
-            if (unit !== "system") {
-                for (let [leg, data] of Object.entries(unit)) {
-                    lanes.push(leg[data])
-                }
+    import Component from 'vue-class-component'
+    import { Mixins } from 'vue-property-decorator'
+    import BaseMixin from '../mixins/base'
+    import ConnectionStatus from '../ui/ConnectionStatus.vue'
+    import Panel from '@/components/ui/Panel.vue'
+    import {
+        mdiRestart,
+        mdiDownload,
+        mdiMessageOutline,
+        mdiAlertOutline,
+        mdiRocketLaunch,
+        mdiConnection,
+        mdiPrinter3d,
+        mdiPower,
+    } from '@mdi/js'
+    
+    export default {
+        name: 'AfcPanel',
+        data() {
+            return {
+                spoolData: [],
+                intervalId: null,
+            };
+        },
+        async mounted() {
+            await this.fetchSpoolData();
+            this.intervalId = setInterval(this.fetchSpoolData, 10000); // Refresh data every 10 seconds
+        },
+        beforeDestroy() {
+            if (this.intervalId) {
+                clearInterval(this.intervalId);
             }
-      }
-      return lanes;
-    },
-  },
-};
+        },
+        methods: {
+            async fetchSpoolData() {
+                this.spoolData = this.extractLaneData(this.$store.state.printer.AFC);
+                console.log(this.spoolData);
+            },
+            extractLaneData(spools) {
+                const { ['system']: removedKey, ...units } = spools;
+                for (const key in units) {
+                    delete units[key]['system'];
+                }
+                return units;
+            },
+        },
+    };
 </script>
 
 <style scoped>
@@ -93,5 +101,15 @@ h1 {
 .spool p {
   margin: 5px 0;
   color: #666;
+}
+
+.unit h4 {
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.unit p {
+    margin: 5px 0;
+    color: #666;
 }
 </style>
